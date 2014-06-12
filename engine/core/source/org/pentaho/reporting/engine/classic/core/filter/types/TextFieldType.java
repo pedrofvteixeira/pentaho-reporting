@@ -22,7 +22,10 @@ import javax.swing.text.Document;
 import org.pentaho.reporting.engine.classic.core.AttributeNames;
 import org.pentaho.reporting.engine.classic.core.ReportElement;
 import org.pentaho.reporting.engine.classic.core.function.ExpressionRuntime;
+import org.pentaho.reporting.engine.classic.core.layout.output.AbstractReportProcessor;
 import org.pentaho.reporting.engine.classic.core.metadata.ElementType;
+import org.pentaho.reporting.engine.classic.core.util.ReportDrawableRotatedComponent;
+import org.pentaho.reporting.engine.classic.core.util.RotationUtils;
 
 public class TextFieldType extends AbstractElementType
 {
@@ -73,6 +76,12 @@ public class TextFieldType extends AbstractElementType
     {
       return element.getAttribute(AttributeNames.Core.NAMESPACE, AttributeNames.Core.NULL_VALUE);
     }
-    return retval;
+
+    final float rotation = RotationUtils.getRotation(element);
+    
+    final boolean isPdf = AbstractReportProcessor.isPdf.get() == null || AbstractReportProcessor.isPdf.get();
+
+    return rotation == RotationUtils.NO_ROTATION ? String.valueOf(retval) :
+      isPdf ? new ReportDrawableRotatedComponent( String.valueOf(retval), rotation, element ) : String.valueOf(retval);
   }
 }

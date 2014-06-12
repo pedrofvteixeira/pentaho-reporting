@@ -28,6 +28,9 @@ import org.pentaho.reporting.engine.classic.core.ReportElement;
 import org.pentaho.reporting.engine.classic.core.filter.FormatSpecification;
 import org.pentaho.reporting.engine.classic.core.filter.RawDataSource;
 import org.pentaho.reporting.engine.classic.core.function.ExpressionRuntime;
+import org.pentaho.reporting.engine.classic.core.layout.output.AbstractReportProcessor;
+import org.pentaho.reporting.engine.classic.core.util.ReportDrawableRotatedComponent;
+import org.pentaho.reporting.engine.classic.core.util.RotationUtils;
 import org.pentaho.reporting.libraries.base.util.ObjectUtilities;
 import org.pentaho.reporting.libraries.formatting.FastDateFormat;
 
@@ -192,7 +195,14 @@ public class DateFieldType extends AbstractElementType implements RawDataSource
         }
       }
 
-      return context.dateFormat.format(retval);
+      final String value = context.dateFormat.format(retval);
+
+      final float rotation = RotationUtils.getRotation(element);
+
+      final boolean isPdf = AbstractReportProcessor.isPdf.get() == null || AbstractReportProcessor.isPdf.get();
+
+      return rotation == RotationUtils.NO_ROTATION ? value :
+        isPdf ? new ReportDrawableRotatedComponent( value, rotation, element ) : value;
     }
     catch (Exception e)
     {

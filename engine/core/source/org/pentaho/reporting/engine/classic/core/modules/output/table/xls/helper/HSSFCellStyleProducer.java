@@ -32,6 +32,7 @@ import org.apache.poi.xssf.usermodel.XSSFCellStyle;
 import org.apache.poi.xssf.usermodel.XSSFColor;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.apache.poi.xssf.usermodel.extensions.XSSFCellBorder;
+import org.pentaho.reporting.engine.classic.core.AttributeNames;
 import org.pentaho.reporting.engine.classic.core.ElementAlignment;
 import org.pentaho.reporting.engine.classic.core.layout.model.BorderEdge;
 import org.pentaho.reporting.engine.classic.core.layout.model.RenderBox;
@@ -41,6 +42,7 @@ import org.pentaho.reporting.engine.classic.core.style.ElementStyleKeys;
 import org.pentaho.reporting.engine.classic.core.style.StyleSheet;
 import org.pentaho.reporting.engine.classic.core.style.TextStyleKeys;
 import org.pentaho.reporting.engine.classic.core.style.TextWrap;
+import org.pentaho.reporting.engine.classic.core.util.RotationUtils;
 import org.pentaho.reporting.engine.classic.core.util.geom.StrictGeomUtility;
 
 /**
@@ -129,6 +131,11 @@ public class HSSFCellStyleProducer
      * the data style.
      */
     private short dataStyle;
+    
+    /**
+     * the rotation angle.
+     */
+    private short rotation;
 
 
     /**
@@ -214,6 +221,13 @@ public class HSSFCellStyleProducer
           this.dataStyle = dataFormat.getFormat(dataStyle);
         }
         this.wrapText = isWrapText(styleSheet);
+        // read and parse, throws exception if angle out of range [-90,90]
+        String rotationString = String.valueOf(
+            content.getAttributes().getAttribute( AttributeNames.Core.NAMESPACE, AttributeNames.Core.ROTATION ) );
+
+        float rotationFloat = RotationUtils.getRotationDegreesInXlsAcceptedRange( rotationString );
+
+        this.rotation = new Integer( Math.round( rotationFloat ) ).shortValue();
       }
     }
 
@@ -251,6 +265,8 @@ public class HSSFCellStyleProducer
       this.horizontalAlignment = style.getAlignment();
       this.verticalAlignment = style.getVerticalAlignment();
       this.wrapText = style.getWrapText();
+      
+      this.rotation = style.getRotation();
     }
 
     private static Color createColor(final XSSFColor color)
@@ -280,6 +296,8 @@ public class HSSFCellStyleProducer
       this.horizontalAlignment = style.getAlignment();
       this.verticalAlignment = style.getVerticalAlignment();
       this.wrapText = style.getWrapText();
+      
+      this.rotation = style.getRotation();
     }
 
     public boolean equals(final Object o)
@@ -348,6 +366,10 @@ public class HSSFCellStyleProducer
         return false;
       }
       if (wrapText != that.wrapText)
+      {
+        return false;
+      }
+      if (rotation != that.rotation)
       {
         return false;
       }
@@ -439,6 +461,7 @@ public class HSSFCellStyleProducer
       result = 29 * result + (int) verticalAlignment;
       result = 29 * result + (int) font;
       result = 29 * result + (int) dataStyle;
+      result = 29 * result + (int) rotation;
       result = 29 * result + ((xColor == null) ? 0 : xColor.hashCode());
       result = 29 * result + ((xColorTop == null) ? 0 : xColorTop.hashCode());
       result = 29 * result + ((xColorLeft == null) ? 0 : xColorLeft.hashCode());
@@ -540,6 +563,11 @@ public class HSSFCellStyleProducer
     public short getDataStyle()
     {
       return dataStyle;
+    }
+    
+    public short getRotation()
+    {
+      return rotation;
     }
   }
 
@@ -658,6 +686,7 @@ public class HSSFCellStyleProducer
       hssfCellStyle.setFont(workbook.getFontAt(styleKey.getFont()));
       hssfCellStyle.setWrapText(styleKey.isWrapText());
       hssfCellStyle.setDataFormat(styleKey.getDataStyle());
+      hssfCellStyle.setRotation(styleKey.getRotation());
     }
     if (bg != null)
     {

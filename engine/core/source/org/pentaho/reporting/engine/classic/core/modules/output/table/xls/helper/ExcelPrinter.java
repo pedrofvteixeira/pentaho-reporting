@@ -30,8 +30,6 @@ import java.util.HashMap;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.poi.hssf.usermodel.HSSFCell;
-import org.apache.poi.hssf.usermodel.HSSFCellStyle;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
 import org.apache.poi.ss.usermodel.Cell;
@@ -46,8 +44,7 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.apache.poi.ss.util.CellRangeAddress;
-import org.apache.poi.xssf.usermodel.XSSFCell;
-import org.apache.poi.xssf.usermodel.XSSFCellStyle;
+import org.apache.poi.xssf.usermodel.XSSFPicture;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.pentaho.reporting.engine.classic.core.AttributeNames;
 import org.pentaho.reporting.engine.classic.core.DefaultImageReference;
@@ -75,7 +72,8 @@ import org.pentaho.reporting.engine.classic.core.style.ElementStyleKeys;
 import org.pentaho.reporting.engine.classic.core.style.StyleSheet;
 import org.pentaho.reporting.engine.classic.core.util.ImageUtils;
 import org.pentaho.reporting.engine.classic.core.util.IntegerCache;
-import org.pentaho.reporting.engine.classic.core.util.ReportDrawableRotatedText;
+import org.pentaho.reporting.engine.classic.core.util.ReportDrawableRotatedComponent;
+import org.pentaho.reporting.engine.classic.core.util.RotationUtils;
 import org.pentaho.reporting.engine.classic.core.util.geom.StrictBounds;
 import org.pentaho.reporting.engine.classic.core.util.geom.StrictGeomUtility;
 import org.pentaho.reporting.libraries.base.config.Configuration;
@@ -451,7 +449,9 @@ public class ExcelPrinter
 
         if (applyCellValue(metaData, content, cell, sheetLayout, rectangle, contentOffset))
         {
-          mergeCellRegion(rectangle, row, col, sheetLayout, logicalPage, content, contentProducer);
+          // TODO: better rotation integration with code
+          mergeCellRegion(rectangle, row, col, sheetLayout, logicalPage, content, contentProducer,
+              cell.getCellStyle().getRotation());
         }
 
         content.setFinishedTable(true);
@@ -473,7 +473,7 @@ public class ExcelPrinter
                                final SheetLayout sheetLayout,
                                final LogicalPageBox logicalPage,
                                final RenderBox content,
-                               final TableContentProducer contentProducer)
+                               final TableContentProducer contentProducer, final short rotation)
   {
     if (content == null)
     {
@@ -502,6 +502,8 @@ public class ExcelPrinter
         final CellStyle spannedStyle = cellStyleProducer.createCellStyle(content, bg);
         if (spannedStyle != null)
         {
+          //TODO: integrate rotation better with stylesheet keys and HSSFCellStyleProducer
+          spannedStyle.setRotation( rotation );
           regionCell.setCellStyle(spannedStyle);
         }
       }
@@ -558,53 +560,6 @@ public class ExcelPrinter
     else if (value instanceof DrawableWrapper)
     {
       final DrawableWrapper drawable = (DrawableWrapper) value;
-      if (drawable.getBackend() instanceof ReportDrawableRotatedText)
-      {
-        int rotate = ((ReportDrawableRotatedText) drawable.getBackend()).getRotationDegree().intValue();
-        // transform angle values [270,360] => [-90,0] , [-360,-270] => [0,90]
-        if (rotate >= 270 && rotate <= 360)
-        {
-          rotate = rotate - 360;
-        }
-        else if (rotate >= -360 && rotate <= -270)
-        {
-          rotate = rotate + 360;
-        }
-        // if in range [-90,90] export as cell with rotated text, else export as image
-        if (cell instanceof HSSFCell)
-        {
-          // XLS
-          if (rotate >= -90 && rotate <= 90)
-          {
-            HSSFCellStyle style = ((HSSFCell)cell).getCellStyle();
-            style.setRotation((short) (rotate));
-            cell.setCellStyle(style);
-            cell.setCellValue(((ReportDrawableRotatedText) drawable.getBackend()).getText());
-            return false;
-          }
-        }
-        else if (cell instanceof XSSFCell)
-        {
-          //XLSX
-          if (rotate >= 0 && rotate <= 90)
-          {
-            XSSFCellStyle style = ((XSSFCell)cell).getCellStyle();
-            style.setRotation((short) (rotate));
-            cell.setCellStyle(style);
-            cell.setCellValue(((ReportDrawableRotatedText) drawable.getBackend()).getText());
-            return false;
-          }
-          else if (rotate >= -90 && rotate < 0)
-          {
-            // XLSX works funny [-90,0[  => ]90,180]
-            XSSFCellStyle style = ((XSSFCell)cell).getCellStyle();
-            style.setRotation((short) (90 + -1*rotate));
-            cell.setCellStyle(style);
-            cell.setCellValue(((ReportDrawableRotatedText) drawable.getBackend()).getText());
-            return false;
-          }
-        }
-      }
       final RenderNode rawSource = textExtractor.getRawSource();
       final StrictBounds contentBounds = new StrictBounds
           (rawSource.getX(), rawSource.getY() + contentOffset, rawSource.getWidth(), rawSource.getHeight());
@@ -651,6 +606,9 @@ public class ExcelPrinter
           "Excel-Cells cannot contain formulas longer than 1023 characters. Converting excel formula into plain text");
     }
 
+    if( RotationUtils.hasRotation( content ) ){
+      ReportDrawableRotatedComponent.drawExcel( cell, new Float( RotationUtils.getRotation( content ) ).intValue() );
+    }
     if (value instanceof RichTextString)
     {
       cell.setCellValue((RichTextString) value);
@@ -1093,6 +1051,10 @@ public class ExcelPrinter
       }
 
       final Picture picture = patriarch.createPicture(anchor, pictureId);
+      if(picture instanceof XSSFPicture)
+      {
+    	picture.resize();
+      }
       ExcelPrinter.logger.info("Created image: " + pictureId + " => " + picture);
     }
     catch (IOException e)

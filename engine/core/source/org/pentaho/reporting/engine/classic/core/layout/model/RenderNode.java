@@ -857,20 +857,20 @@ public abstract class RenderNode implements Cloneable
     return isNodeVisible(drawAreaX0, drawAreaY0, drawAreaWidth, drawAreaHeight, isBoxOverflowX(), isBoxOverflowY());
   }
 
-  public final boolean isNodeVisible(final long drawAreaX0, final long drawAreaY0,
-                                     final long drawAreaWidth, final long drawAreaHeight,
-                                     final boolean overflowX, final boolean overflowY)
+  public final boolean isNodeVisible(long drawAreaX0, long drawAreaY0,
+                                     long drawAreaWidth, long drawAreaHeight,
+                                     boolean overflowX, boolean overflowY)
   {
     if (getStyleSheet().getBooleanStyleProperty(ElementStyleKeys.VISIBLE) == false)
     {
       return false;
     }
 
-    final long drawAreaX1 = drawAreaX0 + drawAreaWidth;
-    final long drawAreaY1 = drawAreaY0 + drawAreaHeight;
+    long drawAreaX1 = drawAreaX0 + drawAreaWidth;
+    long drawAreaY1 = drawAreaY0 + drawAreaHeight;
 
-    final long x2 = x + width;
-    final long y2 = y + height;
+    long x2 = x + width;
+    long y2 = y + height;
 
     if (width == 0)
     {
