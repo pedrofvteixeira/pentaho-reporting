@@ -25,6 +25,7 @@ import org.pentaho.reporting.engine.classic.core.layout.text.GlyphList;
 import org.pentaho.reporting.engine.classic.core.metadata.ElementType;
 import org.pentaho.reporting.engine.classic.core.style.StyleSheet;
 import org.pentaho.reporting.engine.classic.core.util.InstanceID;
+import org.pentaho.reporting.engine.classic.core.util.RotationUtils;
 import org.pentaho.reporting.engine.classic.core.util.geom.StrictGeomUtility;
 import org.pentaho.reporting.libraries.fonts.encoding.CodePointBuffer;
 import org.pentaho.reporting.libraries.fonts.text.Spacing;
@@ -272,17 +273,35 @@ public final class RenderableText extends RenderNode
     return fontMetricsValue * conversionFactor;
   }
 
-  public int computeMaximumTextSize(final long contentX2)
+  public int computeMaximumTextSize(final long contentArea)
   {
     final int length = getLength();
-    final long x = getX();
-    if (contentX2 >= (x + getWidth()))
+    final long minCoord, maxCoord;
+    final RenderBox topParent = this.getParent().getParent();
+    if ( RotationUtils.isVerticalOrientation( topParent ) ){
+      minCoord = topParent.getY()
+          + topParent.getBoxDefinition().getPaddingTop()
+          + topParent.getStaticBoxLayoutProperties().getBorderTop();
+      if( this.getParent().getTextEllipseBox() != null ){
+        // has ellipse
+        maxCoord = minCoord + getWidth();
+      }else{
+        // write it all, TODO overflow restrictions
+        maxCoord = -1;
+      }
+    }else{
+      // TODO diagonal
+      minCoord = getX();
+      maxCoord = minCoord + getWidth();
+    }
+
+    if (contentArea >= maxCoord)
     {
       return length;
     }
 
     final GlyphList gs = getGlyphs();
-    long runningPos = x;
+    long runningPos = minCoord;
     final int offset = getOffset();
     final int maxPos = offset + length;
 
@@ -294,11 +313,12 @@ public final class RenderableText extends RenderNode
       {
         runningPos += g.getSpacing().getMinimum();
       }
-      if (runningPos > contentX2)
+      if (runningPos > contentArea)
       {
         return Math.max(0, i - offset);
       }
     }
     return length;
   }
+
 }

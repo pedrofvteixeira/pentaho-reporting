@@ -50,6 +50,9 @@ import org.pentaho.reporting.engine.classic.core.modules.output.table.html.helpe
 import org.pentaho.reporting.engine.classic.core.modules.output.table.html.helper.StyleManager;
 import org.pentaho.reporting.engine.classic.core.style.ElementStyleKeys;
 import org.pentaho.reporting.engine.classic.core.style.StyleSheet;
+import org.pentaho.reporting.engine.classic.core.util.IReportDrawableRotated;
+import org.pentaho.reporting.engine.classic.core.util.ReportDrawableRotatedComponent;
+import org.pentaho.reporting.engine.classic.core.util.RotationUtils;
 import org.pentaho.reporting.engine.classic.core.util.geom.StrictBounds;
 import org.pentaho.reporting.engine.classic.core.util.geom.StrictGeomUtility;
 import org.pentaho.reporting.libraries.base.util.StringUtils;
@@ -147,7 +150,16 @@ public class HtmlTextExtractor extends DefaultTextExtractor
       final int nodeType = content.getNodeType();
       if (nodeType == LayoutNodeTypes.TYPE_BOX_PARAGRAPH)
       {
-        processParagraphCell((ParagraphRenderBox) content);
+        if( RotationUtils.hasRotation( content ) ){
+          /* we need a distinct object for each component */
+          IReportDrawableRotated rotate = new ReportDrawableRotatedComponent( RotationUtils.getRotation( content ), content );
+          
+          rotate.startDrawHtml( xmlWriter );
+          processParagraphCell((ParagraphRenderBox) content);
+          rotate.finishDrawHtml( xmlWriter );
+        }else{
+          processParagraphCell((ParagraphRenderBox) content);
+        }
       }
       else if (nodeType == LayoutNodeTypes.TYPE_BOX_CONTENT)
       {

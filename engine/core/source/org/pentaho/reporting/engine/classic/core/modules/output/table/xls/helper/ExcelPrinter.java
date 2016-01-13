@@ -44,6 +44,7 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.xssf.usermodel.XSSFPicture;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.pentaho.reporting.engine.classic.core.AttributeNames;
 import org.pentaho.reporting.engine.classic.core.DefaultImageReference;
@@ -71,6 +72,8 @@ import org.pentaho.reporting.engine.classic.core.style.ElementStyleKeys;
 import org.pentaho.reporting.engine.classic.core.style.StyleSheet;
 import org.pentaho.reporting.engine.classic.core.util.ImageUtils;
 import org.pentaho.reporting.engine.classic.core.util.IntegerCache;
+import org.pentaho.reporting.engine.classic.core.util.ReportDrawableRotatedComponent;
+import org.pentaho.reporting.engine.classic.core.util.RotationUtils;
 import org.pentaho.reporting.engine.classic.core.util.geom.StrictBounds;
 import org.pentaho.reporting.engine.classic.core.util.geom.StrictGeomUtility;
 import org.pentaho.reporting.libraries.base.config.Configuration;
@@ -446,7 +449,9 @@ public class ExcelPrinter
 
         if (applyCellValue(metaData, content, cell, sheetLayout, rectangle, contentOffset))
         {
-          mergeCellRegion(rectangle, row, col, sheetLayout, logicalPage, content, contentProducer);
+          // TODO: better rotation integration with code
+          mergeCellRegion(rectangle, row, col, sheetLayout, logicalPage, content, contentProducer,
+              cell.getCellStyle().getRotation());
         }
 
         content.setFinishedTable(true);
@@ -468,7 +473,7 @@ public class ExcelPrinter
                                final SheetLayout sheetLayout,
                                final LogicalPageBox logicalPage,
                                final RenderBox content,
-                               final TableContentProducer contentProducer)
+                               final TableContentProducer contentProducer, final short rotation)
   {
     if (content == null)
     {
@@ -497,6 +502,8 @@ public class ExcelPrinter
         final CellStyle spannedStyle = cellStyleProducer.createCellStyle(content, bg);
         if (spannedStyle != null)
         {
+          //TODO: integrate rotation better with stylesheet keys and HSSFCellStyleProducer
+          spannedStyle.setRotation( rotation );
           regionCell.setCellStyle(spannedStyle);
         }
       }
@@ -599,6 +606,9 @@ public class ExcelPrinter
           "Excel-Cells cannot contain formulas longer than 1023 characters. Converting excel formula into plain text");
     }
 
+    if( RotationUtils.hasRotation( content ) ){
+      ReportDrawableRotatedComponent.drawExcel( cell, new Float( RotationUtils.getRotation( content ) ).intValue() );
+    }
     if (value instanceof RichTextString)
     {
       cell.setCellValue((RichTextString) value);
@@ -712,7 +722,7 @@ public class ExcelPrinter
 
     if (sheetFreezeTop > 0 || sheetFreezeLeft > 0)
     {
-    	sheet.createFreezePane(sheetFreezeLeft, sheetFreezeTop);
+      sheet.createFreezePane(sheetFreezeLeft, sheetFreezeTop);
     }
   }
 
@@ -1041,6 +1051,10 @@ public class ExcelPrinter
       }
 
       final Picture picture = patriarch.createPicture(anchor, pictureId);
+      if(picture instanceof XSSFPicture)
+      {
+    	picture.resize();
+      }
       ExcelPrinter.logger.info("Created image: " + pictureId + " => " + picture);
     }
     catch (IOException e)
